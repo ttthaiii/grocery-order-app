@@ -1,0 +1,199 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS สำหรับ line-clamp */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Reset และ Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #f9fafb;
+  color: #374151;
+}
+
+/* Loading Animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* CategoryGrid Styles */
+.category-container {
+  padding: 16px;
+  background-color: #f9fafb;
+  min-height: 100vh;
+}
+
+.category-header {
+  margin-bottom: 24px;
+}
+
+.category-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.category-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.category-count {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.search-container {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 12px 12px 40px;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 16px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: #9ca3af;
+}
+
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.category-button {
+  background-color: white;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.category-button:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.category-button:active {
+  transform: scale(0.98);
+}
+
+.category-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.category-name {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.3;
+  margin-bottom: 8px;
+  color: #374151;
+}
+
+.category-item-count {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: auto;
+}
+
+.category-subcategories {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+/* Color variations */
+.bg-blue { background-color: #dbeafe; }
+.text-blue { color: #1e40af; }
+.bg-purple { background-color: #e9d5ff; }
+.text-purple { color: #7c3aed; }
+.bg-pink { background-color: #fce7f3; }
+.text-pink { color: #be185d; }
+.bg-orange { background-color: #fed7aa; }
+.text-orange { color: #c2410c; }
+.bg-green { background-color: #dcfce7; }
+.text-green { color: #166534; }
+.bg-gray { background-color: #f3f4f6; }
+.text-gray { color: #374151; }
+
+/* Back button styles */
+.back-button {
+  display: flex;
+  align-items: center;
+  color: #10b981;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  margin-bottom: 16px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #f0fdf4;
+}
+
+.back-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+}
