@@ -3,7 +3,7 @@ import CategoryGrid from './components/CategoryGrid'
 import ProductList from './components/ProductList'
 import CartSummary from './components/CartSummary'
 import { useProducts } from './hooks/useProducts'
-import { submitOrderViaIframe } from './services/iframeOrderService'
+import { submitOrderWithRetry } from './services/orderService'
 import './App.css'
 
 function App() {
@@ -54,14 +54,17 @@ function App() {
 
   const handleSubmitOrder = async (orderCart) => {
     try {
+      // Mock user info (จะเปลี่ยนเป็นข้อมูลจริงเมื่อมี login)
       const userInfo = {
         storeName: 'ร้านทดสอบ',
         branchName: 'สาขาหลัก', 
         userEmail: 'test@example.com'
       };
+
+      console.log('Submitting order:', orderCart);
       
-      // เปลี่ยนจาก submitOrderWithRetry เป็น submitOrderViaIframe
-      const result = await submitOrderViaIframe(orderCart, userInfo);
+      // ส่งรายการไป Google Apps Script
+      const result = await submitOrderWithRetry(orderCart, userInfo);
       
       console.log('Order submitted successfully:', result);
       

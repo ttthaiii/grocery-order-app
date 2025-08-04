@@ -47,6 +47,57 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+/* Modal Animations */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes success-bounce {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes error-shake {
+  0%, 100% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    transform: scale(1.1) rotate(-5deg);
+    opacity: 1;
+  }
+  20% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  30% {
+    transform: scale(1.1) rotate(-5deg);
+  }
+  40% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  50% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
 /* CategoryGrid Styles */
 .category-container {
   padding: 16px;

@@ -1,32 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
   const [quantity, setQuantity] = useState(cartQuantity);
+  const [inputValue, setInputValue] = useState(cartQuantity.toString());
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Update local state when cartQuantity changes
+  useEffect(() => {
+    setQuantity(cartQuantity);
+    setInputValue(cartQuantity.toString());
+  }, [cartQuantity]);
 
   const handleAddToCart = () => {
     const newQuantity = quantity + 1;
     setQuantity(newQuantity);
+    setInputValue(newQuantity.toString());
     onAddToCart && onAddToCart(product, newQuantity);
   };
 
   const handleQuantityChange = (newQuantity) => {
     if (newQuantity < 0) return;
     setQuantity(newQuantity);
+    setInputValue(newQuantity.toString());
     onAddToCart && onAddToCart(product, newQuantity);
   };
 
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    
+    // อนุญาตให้กรอกเฉพาะตัวเลข
+    if (value === '' || /^\d+$/.test(value)) {
+      setInputValue(value);
+    }
+  };
+
+  const handleInputBlur = () => {
+    const newQuantity = parseInt(inputValue) || 0;
+    handleQuantityChange(newQuantity);
+    setIsEditing(false);
+  };
+
+  const handleInputFocus = () => {
+    setIsEditing(true);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur();
+    }
+  };
+
+  // กำหนดสีตาม quantity
+  const isSelected = quantity > 0;
+  const cardStyle = {
+    backgroundColor: isSelected ? '#f0fdf4' : 'white', // เปลี่ยนสีเมื่อถูกเลือก
+    borderRadius: '8px',
+    boxShadow: isSelected ? '0 2px 8px rgba(16, 185, 129, 0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
+    border: isSelected ? '2px solid #10b981' : '1px solid #e5e7eb',
+    overflow: 'hidden',
+    transition: 'all 0.2s',
+    cursor: 'pointer'
+  };
+
   return (
-    <div style={{
-      backgroundColor: 'white',
-      borderRadius: '8px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      border: '1px solid #e5e7eb',
-      overflow: 'hidden',
-      transition: 'transform 0.2s',
-      cursor: 'pointer'
-    }}>
+    <div style={cardStyle}>
       {/* Product Image */}
       <div style={{
         position: 'relative',
@@ -74,6 +113,27 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
             }}></div>
           </div>
         )}
+
+        {/* Selected Indicator */}
+        {isSelected && (
+          <div style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            backgroundColor: '#10b981',
+            color: 'white',
+            borderRadius: '50%',
+            width: '24px',
+            height: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            fontWeight: 'bold'
+          }}>
+            ✓
+          </div>
+        )}
       </div>
 
       {/* Product Info */}
@@ -81,7 +141,7 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
         {/* Product Name */}
         <h3 style={{
           fontWeight: '500',
-          color: '#1f2937',
+          color: isSelected ? '#166534' : '#1f2937',
           fontSize: '14px',
           lineHeight: '1.3',
           marginBottom: '4px',
@@ -96,7 +156,7 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
         {/* Unit */}
         <p style={{
           fontSize: '12px',
-          color: '#6b7280',
+          color: isSelected ? '#059669' : '#6b7280',
           marginBottom: '8px'
         }}>
           {product.หน่วย}
@@ -107,8 +167,8 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
           <div style={{ marginBottom: '8px' }}>
             <span style={{
               display: 'inline-block',
-              backgroundColor: '#eff6ff',
-              color: '#1e40af',
+              backgroundColor: isSelected ? '#dcfce7' : '#eff6ff',
+              color: isSelected ? '#166534' : '#1e40af',
               fontSize: '10px',
               padding: '2px 6px',
               borderRadius: '12px'
@@ -150,13 +210,14 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
               </svg>
             </button>
           ) : (
-            // Quantity Controls
+            // Quantity Controls with Input
             <div style={{
               display: 'flex',
               alignItems: 'center',
               backgroundColor: '#f0fdf4',
               borderRadius: '20px',
-              padding: '2px'
+              padding: '2px',
+              width: '100%'
             }}>
               <button
                 onClick={() => handleQuantityChange(quantity - 1)}
@@ -171,7 +232,8 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
                   border: 'none',
                   borderRadius: '50%',
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  flexShrink: 0
                 }}
               >
                 <svg style={{ width: '12px', height: '12px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,16 +241,28 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
                 </svg>
               </button>
               
-              <span style={{
-                margin: '0 8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#166534',
-                minWidth: '20px',
-                textAlign: 'center'
-              }}>
-                {quantity}
-              </span>
+              {/* Quantity Input/Display */}
+              <input
+                type="text"
+                value={inputValue}
+                onChange={handleInputChange}
+                onBlur={handleInputBlur}
+                onFocus={handleInputFocus}
+                onKeyPress={handleKeyPress}
+                style={{
+                  margin: '0 4px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#166534',
+                  minWidth: '30px',
+                  textAlign: 'center',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  flex: 1
+                }}
+                placeholder="0"
+              />
               
               <button
                 onClick={() => handleQuantityChange(quantity + 1)}
@@ -203,7 +277,8 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
                   border: 'none',
                   borderRadius: '50%',
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  flexShrink: 0
                 }}
               >
                 <svg style={{ width: '12px', height: '12px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">

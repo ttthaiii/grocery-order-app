@@ -134,7 +134,7 @@ const ProductList = ({
       </div>
 
       {/* Products Grid */}
-      <div style={{ padding: '16px' }}>
+      <div style={{ padding: '16px', paddingBottom: '80px' }}> {/* เพิ่ม paddingBottom */}
         {filteredProducts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>

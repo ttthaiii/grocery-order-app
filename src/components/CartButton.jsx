@@ -26,14 +26,14 @@ const CartButton = ({ cart, onClick }) => {
           backgroundColor: '#10b981',
           color: 'white',
           border: 'none',
-          borderRadius: '25px',
-          padding: '12px 20px',
+          borderRadius: '20px',
+          padding: '8px 16px', // ลดขนาด padding
           cursor: 'pointer',
           boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-          fontSize: '16px',
+          fontSize: '14px', // ลดขนาดฟอนต์
           fontWeight: '500',
           transition: 'all 0.3s',
-          minWidth: '120px'
+          minWidth: '100px' // ลดขนาดความกว้าง
         }}
         onMouseOver={(e) => {
           e.target.style.backgroundColor = '#059669';
@@ -46,7 +46,7 @@ const CartButton = ({ cart, onClick }) => {
       >
         {/* Cart Icon */}
         <svg 
-          style={{ width: '20px', height: '20px', marginRight: '8px' }} 
+          style={{ width: '16px', height: '16px', marginRight: '6px' }} // ลดขนาดไอคอน
           fill="none" 
           stroke="currentColor" 
           viewBox="0 0 24 24"
@@ -59,28 +59,10 @@ const CartButton = ({ cart, onClick }) => {
           />
         </svg>
 
-        {/* Item Count */}
-        <span style={{ marginRight: '4px' }}>
+        {/* Item Count - เอาเลขซ้ำออก */}
+        <span>
           ตะกร้า • {totalItems} รายการ
         </span>
-
-        {/* Badge */}
-        <div
-          style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.3)',
-            borderRadius: '50%',
-            width: '24px',
-            height: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '12px',
-            fontWeight: 'bold',
-            marginLeft: '4px'
-          }}
-        >
-          {totalItems}
-        </div>
       </button>
     </div>
   );
