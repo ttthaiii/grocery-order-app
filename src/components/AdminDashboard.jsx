@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { getAdminDashboardData, checkAdminConnection } from '../services/adminService';
+import { 
+  getAdminDashboardData, 
+  checkAdminConnection,
+  createProcurementSession,
+  formatFirestoreTime 
+} from '../services/firestoreAdminService';
 
 const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
   const [dashboardData, setDashboardData] = useState({
@@ -16,12 +21,15 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
   const [error, setError] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [selectedShop, setSelectedShop] = useState(null); // เพิ่ม state สำหรับ drill-down
+  const [isCreatingSession, setIsCreatingSession] = useState(false); // Loading state for procurement
 
-  // โหลดข้อมูลจาก Google Apps Script
+  // โหลดข้อมูลจาก Firestore
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('🔄 Loading admin dashboard data...');
       
       // ดึงข้อมูล dashboard
       const data = await getAdminDashboardData();
@@ -56,9 +64,29 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
     loadDashboardData();
   }, []);
 
-  const handleSummarizeOrders = () => {
-    console.log('Creating new procurement session...');
-    onNavigate('procurement-planning');
+  const handleSummarizeOrders = async () => {
+    if (dashboardData.pendingOrders === 0) {
+      alert('ไม่มีรายการสั่งซื้อที่รอการประมวลผล');
+      return;
+    }
+
+    try {
+      setIsCreatingSession(true);
+      console.log('🚀 Creating procurement session...');
+      
+      const result = await createProcurementSession();
+      
+      alert(`✅ สร้าง Procurement Session สำเร็จ!\n\nSession ID: ${result.sessionId}\nประมวลผล: ${result.ordersProcessed} รายการ\n\nสถานะทั้งหมดได้เปลี่ยนจาก "pending" เป็น "summarized" แล้ว`);
+      
+      // Reload dashboard to reflect changes
+      await loadDashboardData();
+      
+    } catch (error) {
+      console.error('Error creating procurement session:', error);
+      alert(`❌ เกิดข้อผิดพลาดในการสร้าง Procurement Session:\n\n${error.message}`);
+    } finally {
+      setIsCreatingSession(false);
+    }
   };
 
   const handleRefresh = () => {
@@ -66,14 +94,23 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
   };
 
   const handleShopClick = (shopData) => {
-    // หา orders ทั้งหมดของร้านนี้
+    console.log('🔍 Shop clicked:', shopData);
+    
+    // หา orders ทั้งหมดของร้านนี้จาก pendingOrderDetails
     const shopOrders = dashboardData.pendingOrderDetails.filter(
       order => order.shopId === shopData.shopId
     );
     
     setSelectedShop({
       ...shopData,
-      orders: shopOrders
+      orders: shopOrders.map(order => ({
+        orderId: order.orderId,
+        items: order.items || [],
+        totalItems: order.totalItems,
+        totalQuantity: order.totalQuantity,
+        createdAt: order.createdAt,
+        status: order.status
+      }))
     });
   };
 
@@ -108,13 +145,30 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
-      {/* เอา Header ออก - ให้ App.jsx จัดการแทน */}
-      
       <div style={{
         maxWidth: '1280px',
         margin: '0 auto',
         padding: '32px 16px'
       }}>
+        {/* Connection Status */}
+        {!isConnected && (
+          <div style={{
+            backgroundColor: '#fef3c7',
+            border: '1px solid #fcd34d',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <div style={{ fontSize: '16px' }}>🌐</div>
+            <span style={{ color: '#d97706', fontSize: '14px', fontWeight: '500' }}>
+              ใช้ข้อมูลจาก Firestore - {isConnected ? 'เชื่อมต่อสำเร็จ' : 'การเชื่อมต่อไม่เสถียร'}
+            </span>
+          </div>
+        )}
+
         {/* Error Alert */}
         {error && (
           <div style={{
@@ -130,7 +184,7 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
             <div style={{ fontSize: '20px' }}>⚠️</div>
             <div>
               <p style={{ color: '#dc2626', fontWeight: '500', margin: 0 }}>
-                เกิดข้อผิดพลาดในการโหลดข้อมูล
+                การแสดงข้อมูล
               </p>
               <p style={{ color: '#7f1d1d', fontSize: '14px', margin: '4px 0 0 0' }}>
                 {error}
@@ -146,6 +200,7 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
           gap: '24px',
           marginBottom: '32px'
         }}>
+          {/* Pending Orders */}
           <div style={{
             backgroundColor: 'white',
             borderRadius: '12px',
@@ -173,6 +228,112 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
                   color: '#d97706',
                   margin: '0 0 4px 0'
                 }}>
+                  {dashboardData.pendingOrders}
+                </p>
+                <p style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  margin: 0
+                }}>
+                  คำสั่งซื้อ
+                </p>
+              </div>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                backgroundColor: '#fef3c7',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px'
+              }}>
+                📋
+              </div>
+            </div>
+          </div>
+
+          {/* Regular Shops */}
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            border: '1px solid #e5e7eb',
+            padding: '24px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <p style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#6b7280',
+                  margin: '0 0 8px 0'
+                }}>
+                  ร้านค้าปกติ
+                </p>
+                <p style={{
+                  fontSize: '32px',
+                  fontWeight: 'bold',
+                  color: '#3b82f6',
+                  margin: '0 0 4px 0'
+                }}>
+                  {dashboardData.regularShops}
+                </p>
+                <p style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  margin: 0
+                }}>
+                  ร้าน
+                </p>
+              </div>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                backgroundColor: '#dbeafe',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px'
+              }}>
+                🏪
+              </div>
+            </div>
+          </div>
+
+          {/* Premium Shops */}
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            border: '1px solid #e5e7eb',
+            padding: '24px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <p style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#6b7280',
+                  margin: '0 0 8px 0'
+                }}>
+                  ร้านซูชิ
+                </p>
+                <p style={{
+                  fontSize: '32px',
+                  fontWeight: 'bold',
+                  color: '#f59e0b',
+                  margin: '0 0 4px 0'
+                }}>
                   {dashboardData.premiumShops}
                 </p>
                 <p style={{
@@ -180,7 +341,7 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
                   color: '#6b7280',
                   margin: 0
                 }}>
-                  สั่งซื้อแล้ว
+                  ร้าน
                 </p>
               </div>
               <div style={{
@@ -233,13 +394,13 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
             }}>
               <button
                 onClick={handleSummarizeOrders}
-                disabled={dashboardData.pendingOrders === 0}
+                disabled={dashboardData.pendingOrders === 0 || isCreatingSession}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '12px',
-                  background: dashboardData.pendingOrders > 0 
+                  background: dashboardData.pendingOrders > 0 && !isCreatingSession
                     ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
                     : '#9ca3af',
                   color: 'white',
@@ -248,29 +409,45 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
                   fontWeight: '600',
                   fontSize: '18px',
                   border: 'none',
-                  cursor: dashboardData.pendingOrders > 0 ? 'pointer' : 'not-allowed',
+                  cursor: dashboardData.pendingOrders > 0 && !isCreatingSession ? 'pointer' : 'not-allowed',
                   transition: 'all 0.2s',
-                  boxShadow: dashboardData.pendingOrders > 0 
+                  boxShadow: dashboardData.pendingOrders > 0 && !isCreatingSession
                     ? '0 4px 6px rgba(16, 185, 129, 0.25)'
                     : '0 2px 4px rgba(0,0,0,0.1)'
                 }}
                 onMouseOver={(e) => {
-                  if (dashboardData.pendingOrders > 0) {
+                  if (dashboardData.pendingOrders > 0 && !isCreatingSession) {
                     e.target.style.transform = 'scale(1.05)';
                     e.target.style.boxShadow = '0 8px 12px rgba(16, 185, 129, 0.35)';
                   }
                 }}
                 onMouseOut={(e) => {
-                  if (dashboardData.pendingOrders > 0) {
+                  if (dashboardData.pendingOrders > 0 && !isCreatingSession) {
                     e.target.style.transform = 'scale(1)';
                     e.target.style.boxShadow = '0 4px 6px rgba(16, 185, 129, 0.25)';
                   }
                 }}
               >
-                <svg style={{ width: '24px', height: '24px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                สรุปรายการสั่งซื้อ
+                {isCreatingSession ? (
+                  <>
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      border: '2px solid rgba(255, 255, 255, 0.3)',
+                      borderTop: '2px solid white',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                    กำลังสร้าง Session...
+                  </>
+                ) : (
+                  <>
+                    <svg style={{ width: '24px', height: '24px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    สรุปรายการสั่งซื้อ
+                  </>
+                )}
               </button>
               
               <button 
@@ -297,6 +474,38 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
                 จัดการสต็อก
+              </button>
+
+              <button 
+                onClick={handleRefresh}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  backgroundColor: '#f9fafb',
+                  color: '#6b7280',
+                  padding: '16px 24px',
+                  borderRadius: '12px',
+                  fontWeight: '500',
+                  fontSize: '16px',
+                  border: '1px solid #e5e7eb',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.backgroundColor = '#f3f4f6';
+                  e.target.style.borderColor = '#d1d5db';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.backgroundColor = '#f9fafb';
+                  e.target.style.borderColor = '#e5e7eb';
+                }}
+              >
+                <svg style={{ width: '18px', height: '18px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                รีเฟรช
               </button>
             </div>
           </div>
@@ -378,7 +587,7 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
                           color: '#6b7280',
                           margin: 0
                         }}>
-                          {product.shops} ร้านสั่ง
+                          {product.shops} ร้านสั่ง • {product.unit}
                         </p>
                       </div>
                     </div>
@@ -395,7 +604,7 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
                         color: '#6b7280',
                         margin: 0
                       }}>
-                        {product.unit}
+                        รวม
                       </p>
                     </div>
                   </div>
@@ -736,42 +945,46 @@ const AdminDashboard = ({ currentUser, onLogout, onNavigate }) => {
                   maxHeight: '400px',
                   overflow: 'auto'
                 }}>
-                  {selectedShop.orders.map((order, index) => (
+                  {selectedShop.orders.map((order, orderIndex) => (
                     <div
-                      key={index}
+                      key={orderIndex}
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '12px',
+                        padding: '16px',
                         backgroundColor: '#f9fafb',
                         borderRadius: '8px',
                         border: '1px solid #e5e7eb'
                       }}
                     >
-                      <div>
-                        <p style={{
-                          fontWeight: '500',
-                          color: '#111827',
-                          margin: '0 0 4px 0'
-                        }}>
-                          {order.productName}
-                        </p>
-                        <p style={{
-                          fontSize: '14px',
-                          color: '#6b7280',
-                          margin: 0
-                        }}>
-                          {order.unit}
-                        </p>
-                      </div>
                       <div style={{
-                        fontWeight: 'bold',
-                        color: '#059669',
-                        fontSize: '16px'
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '12px'
                       }}>
-                        {order.quantity}
+                        <h5 style={{
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          color: '#111827',
+                          margin: 0,
+                          fontFamily: 'monospace'
+                        }}>
+                          {order.orderId}
+                        </h5>
+                        <span style={{
+                          fontSize: '12px',
+                          color: '#6b7280'
+                        }}>
+                          {order.totalItems} รายการ • {order.totalQuantity} ชิ้น
+                        </span>
                       </div>
+                      
+                      {order.items && order.items.length > 0 && (
+                        <div style={{ fontSize: '14px', color: '#374151' }}>
+                          <strong>สินค้า:</strong>{' '}
+                          {order.items.slice(0, 3).map(item => `${item.productName} (${item.quantity})`).join(', ')}
+                          {order.items.length > 3 && ` และอีก ${order.items.length - 3} รายการ`}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

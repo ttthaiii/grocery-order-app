@@ -5,9 +5,7 @@ import CartSummary from './components/CartSummary'
 import UserSelection from './components/UserSelection'
 import AdminDashboard from './components/AdminDashboard'
 import { useProducts } from './hooks/useProducts'
-import { submitOrderViaIframe } from './services/iframeOrderService'
-
-import { MigrationController } from './services/migrationService'
+import { submitOrderToFirestore } from './services/firestoreOrderService'
 
 import './App.css'
 
@@ -18,66 +16,6 @@ function App() {
   const [cart, setCart] = useState({});
   const { products, categories, loading, error, refreshProducts } = useProducts();
 
-
-  React.useEffect(() => {
-    // CSV Migration แทน Google Sheets
-    window.runCSVMigration = async () => {
-      console.log('🚀 เริ่มต้น CSV Migration...');
-      
-      try {
-        // ข้อมูลสินค้าจาก CSV ที่อัปโหลด (ตัวอย่าง 50 รายการแรก)
-        const products = [
-          { name: 'แครอท', unit: 'กิโล', mainCategory: 'ผักและผลไม้', subCategory: 'ผัก' },
-          { name: 'หอมแดง', unit: 'กิโล', mainCategory: 'ผักและผลไม้', subCategory: 'ผัก' },
-          { name: 'ผักกาดขาว', unit: 'กิโล', mainCategory: 'ผักและผลไม้', subCategory: 'ผัก' },
-          { name: 'บรอกโคลี่', unit: 'กิโล', mainCategory: 'ผักและผลไม้', subCategory: 'ผัก' },
-          { name: 'ปลาแซลมอน', unit: 'กิโล', mainCategory: 'อาหารทะเล และเนื้อสัตว์', subCategory: 'อาหารทะเล' },
-          // ... (จะเพิ่มครบ 500+ รายการ)
-        ].map((item, index) => ({
-          productId: `prod_${(index + 1).toString().padStart(4, '0')}`,
-          name: item.name,
-          unit: item.unit,
-          mainCategory: item.mainCategory,
-          subCategory: item.subCategory,
-          imageUrl: '',
-          isActive: true,
-          sortOrder: index + 1,
-          metadata: {
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: 'csv_migration'
-          }
-        }));
-
-        // Upload ไป Firestore
-        const { writeBatch, doc, collection } = await import('firebase/firestore');
-        const { db } = await import('./firebase/config');
-        
-        const batch = writeBatch(db);
-        products.forEach(product => {
-          const docRef = doc(collection(db, 'products'), product.productId);
-          batch.set(docRef, product);
-        });
-        
-        await batch.commit();
-        
-        console.log(`✅ อัปโหลดสินค้าสำเร็จ: ${products.length} รายการ`);
-        alert(`🎉 Migration สำเร็จ!\nสินค้า: ${products.length} รายการ`);
-        
-        return { products: products.length };
-        
-      } catch (error) {
-        console.error('❌ CSV Migration ล้มเหลว:', error);
-        alert(`❌ Migration ล้มเหลว: ${error.message}`);
-        throw error;
-      }
-    };
-    
-    console.log('📁 CSV Migration Ready!');
-    console.log('รันคำสั่ง: await window.runCSVMigration()');
-  }, []);
-  
-  
   // User Selection Handler
   const handleUserSelect = (userInfo) => {
     console.log('User selected:', userInfo);
@@ -85,7 +23,7 @@ function App() {
     
     // Navigate based on user type
     if (userInfo.shopType === 'admin') {
-      setCurrentView('admin'); // จะสร้างในอนาคต
+      setCurrentView('admin');
     } else {
       setCurrentView('categories');
     }
@@ -95,6 +33,7 @@ function App() {
   const handleAdminNavigate = (page) => {
     setCurrentView(page);
   };
+  
   const handleLogout = () => {
     setCurrentUser(null);
     setCurrentView('categories');
@@ -146,7 +85,7 @@ function App() {
     try {
       // ใช้ข้อมูล user ที่ login แล้ว พร้อม shopType
       const userInfo = {
-        shopType: currentUser.shopType, // เพิ่ม shopType
+        shopType: currentUser.shopType,
         storeName: currentUser.storeName,
         branchName: currentUser.branchName,
         userEmail: currentUser.userEmail
@@ -155,8 +94,8 @@ function App() {
       console.log('Submitting order with user info:', userInfo);
       console.log('Order cart:', orderCart);
       
-      // ส่งรายการไป Google Apps Script ผ่าน iframe (แก้ CORS)
-      const result = await submitOrderViaIframe(orderCart, userInfo);
+      // ส่งรายการไป Firestore
+      const result = await submitOrderToFirestore(orderCart, userInfo);
       
       console.log('Order submitted successfully:', result);
       
@@ -241,7 +180,7 @@ function App() {
 
       {/* Main Content */}
       {currentUser.shopType === 'admin' ? (
-        // Admin Views - ไม่ต้องแสดง user info bar เพราะ AdminDashboard มี header เอง
+        // Admin Views
         <>
           {currentView === 'admin' && (
             <AdminDashboard 
