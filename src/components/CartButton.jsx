@@ -1,8 +1,9 @@
 import React from 'react';
 
 const CartButton = ({ cart, onClick }) => {
-  // คำนวณจำนวนสินค้าทั้งหมดในตะกร้า
-  const totalItems = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
+  // คำนวณจำนวนรายการ (ไม่ใช่จำนวนสินค้า)
+  // เปลี่ยนจาก reduce เป็นการนับ key ที่มี quantity > 0
+  const totalItems = Object.entries(cart).filter(([product, quantity]) => quantity > 0).length;
 
   if (totalItems === 0) {
     return null; // ไม่แสดงปุ่มถ้าไม่มีสินค้าในตะกร้า
@@ -27,13 +28,13 @@ const CartButton = ({ cart, onClick }) => {
           color: 'white',
           border: 'none',
           borderRadius: '20px',
-          padding: '8px 16px', // ลดขนาด padding
+          padding: '8px 16px',
           cursor: 'pointer',
           boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-          fontSize: '14px', // ลดขนาดฟอนต์
+          fontSize: '14px',
           fontWeight: '500',
           transition: 'all 0.3s',
-          minWidth: '100px' // ลดขนาดความกว้าง
+          minWidth: '100px'
         }}
         onMouseOver={(e) => {
           e.target.style.backgroundColor = '#059669';
@@ -46,7 +47,7 @@ const CartButton = ({ cart, onClick }) => {
       >
         {/* Cart Icon */}
         <svg 
-          style={{ width: '16px', height: '16px', marginRight: '6px' }} // ลดขนาดไอคอน
+          style={{ width: '16px', height: '16px', marginRight: '6px' }}
           fill="none" 
           stroke="currentColor" 
           viewBox="0 0 24 24"
@@ -59,7 +60,7 @@ const CartButton = ({ cart, onClick }) => {
           />
         </svg>
 
-        {/* Item Count - เอาเลขซ้ำออก */}
+        {/* Item Count - แสดงจำนวนรายการ ไม่ใช่จำนวนสินค้า */}
         <span>
           ตะกร้า • {totalItems} รายการ
         </span>

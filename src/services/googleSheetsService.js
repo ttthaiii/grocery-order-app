@@ -1,27 +1,44 @@
-// src/services/googleSheetsService.js
+// src/services/googleSheetsService.js - แก้ไขให้รองรับรูปภาพ
 
 // แปลง Google Sheets URL เป็น CSV URL
 const convertToCSVUrl = (googleSheetsUrl, sheetGid = 0) => {
-  // แยก sheet ID จาก URL
   const match = googleSheetsUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   if (!match) {
     throw new Error('Invalid Google Sheets URL');
   }
   
   const sheetId = match[1];
-  
-  // ถ้า URL มี gid อยู่แล้ว ให้ใช้ gid นั้น
   const gidMatch = googleSheetsUrl.match(/gid=([0-9]+)/);
   const finalGid = gidMatch ? gidMatch[1] : sheetGid;
   
-  // แปลงเป็น CSV export URL พร้อม gid
   return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${finalGid}`;
+};
+
+// ปรับปรุง Google Drive URL ให้แสดงได้ดีขึ้น
+const fixGoogleDriveUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  
+  // ถ้าเป็น Google Drive URL แล้ว ให้ใช้เลย
+  if (url.includes('drive.google.com/uc?export=view&id=')) {
+    return url;
+  }
+  
+  // ถ้าเป็นรูปแบบอื่นของ Google Drive
+  const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+  if (fileIdMatch) {
+    return `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
+  }
+  
+  // ถ้าเป็น URL ปกติ ให้ใช้เลย
+  return url;
 };
 
 // ฟังก์ชันสำหรับ parse CSV
 const parseCSV = (csvText) => {
   const lines = csvText.split('\n');
   const headers = lines[0].split(',').map(header => header.replace(/"/g, '').trim());
+  
+  console.log('CSV Headers found:', headers);
   
   const data = [];
   for (let i = 1; i < lines.length; i++) {
@@ -48,7 +65,14 @@ const parseCSV = (csvText) => {
       // สร้าง object จาก headers และ values
       const row = {};
       headers.forEach((header, index) => {
-        row[header] = values[index] ? values[index].replace(/"/g, '') : '';
+        let value = values[index] ? values[index].replace(/"/g, '') : '';
+        
+        // แก้ไข URL รูปภาพถ้าเป็น column รูป
+        if (header === 'รูป' || header === 'รูปภาพ' || header === 'image') {
+          value = fixGoogleDriveUrl(value);
+        }
+        
+        row[header] = value;
       });
       
       // เช็คว่ามีข้อมูลครบ
@@ -56,6 +80,17 @@ const parseCSV = (csvText) => {
         data.push(row);
       }
     }
+  }
+  
+  console.log(`Parsed ${data.length} products with images`);
+  // แสดง sample data พร้อมรูป
+  if (data.length > 0) {
+    console.log('Sample product with image:', {
+      name: data[0].รายการ,
+      unit: data[0].หน่วย,
+      image: data[0].รูป,
+      category: data[0].ประเภทหลัก
+    });
   }
   
   return data;
@@ -77,7 +112,7 @@ export const fetchProductsFromSheets = async (googleSheetsUrl, sheetGid = 0) => 
     const products = parseCSV(csvText);
     
     console.log('Fetched products:', products.length);
-    console.log('Sample product:', products[0]);
+    console.log('Products with images:', products.filter(p => p.รูป && p.รูป.trim() !== '').length);
     
     return products;
   } catch (error) {

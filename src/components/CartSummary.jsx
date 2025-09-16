@@ -21,7 +21,8 @@ const CartSummary = ({ cart, products, onBack, onUpdateCart, onSubmitOrder }) =>
     }
   };
 
-  const totalItems = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
+  // นับจำนวนรายการ (ไม่ใช่จำนวนสินค้า)
+  const totalItems = Object.entries(cart).filter(([product, quantity]) => quantity > 0).length;
 
   if (cartItems.length === 0) {
     return (
@@ -100,7 +101,8 @@ const CartSummary = ({ cart, products, onBack, onUpdateCart, onSubmitOrder }) =>
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                flexShrink: 0
+                flexShrink: 0,
+                overflow: 'hidden'
               }}>
                 {product.รูป ? (
                   <img
@@ -114,13 +116,24 @@ const CartSummary = ({ cart, products, onBack, onUpdateCart, onSubmitOrder }) =>
                     }}
                     onError={(e) => {
                       e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'block';
+                      e.target.parentNode.querySelector('.fallback-icon').style.display = 'flex';
                     }}
                   />
-                ) : (
-                  <div style={{ fontSize: '24px', color: '#9ca3af' }}>📦</div>
-                )}
-                <div style={{ fontSize: '24px', color: '#9ca3af', display: 'none' }}>📦</div>
+                ) : null}
+                <div 
+                  className="fallback-icon"
+                  style={{ 
+                    fontSize: '24px', 
+                    color: '#9ca3af',
+                    display: product.รูป ? 'none' : 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%'
+                  }}
+                >
+                  📦
+                </div>
               </div>
 
               {/* Product Info */}

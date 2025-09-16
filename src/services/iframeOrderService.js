@@ -1,11 +1,12 @@
-// src/services/iframeOrderService.js - แก้ไขแล้ว
+// src/services/iframeOrderService.js - แก้ CORS + Shop Type
 
 export const submitOrderViaIframe = (cart, userInfo = {}) => {
   return new Promise((resolve, reject) => {
-    // สร้าง order data
+    // สร้าง order data พร้อม shopType
     const orderData = {
       cart: cart,
       timestamp: new Date().toISOString(),
+      shopType: userInfo.shopType || 'regular', // เพิ่ม shopType
       storeName: userInfo.storeName || 'ร้านทดสอบ',
       branchName: userInfo.branchName || 'สาขาหลัก',
       userEmail: userInfo.userEmail || 'test@example.com'
@@ -36,15 +37,52 @@ export const submitOrderViaIframe = (cart, userInfo = {}) => {
 
     document.body.appendChild(form);
 
-    // ตั้ง timeout เพื่อถือว่าสำเร็จ
-    const successTimeout = setTimeout(() => {
-      console.log('Order submission completed (timeout)');
+    // Listen for response from iframe
+    const messageHandler = (event) => {
+      console.log('Received message from iframe:', event.data);
+      
+      if (event.data && typeof event.data === 'object') {
+        window.removeEventListener('message', messageHandler);
+        clearTimeout(failTimeout);
+        
+        try {
+          document.body.removeChild(iframe);
+          document.body.removeChild(form);
+        } catch (e) {
+          console.log('Elements already removed');
+        }
+        
+        if (event.data.success) {
+          resolve({
+            success: true,
+            message: 'Order submitted successfully',
+            orderId: event.data.orderId,
+            shopId: event.data.shopId || 'UNKNOWN',
+            timestamp: event.data.timestamp,
+            itemCount: event.data.itemCount || Object.keys(cart).filter(key => cart[key] > 0).length,
+            shopType: event.data.shopType || userInfo.shopType
+          });
+        } else {
+          reject(new Error(event.data.message || 'Unknown error occurred'));
+        }
+      }
+    };
+
+    window.addEventListener('message', messageHandler);
+
+    // ตั้ง fail timeout เป็น backup
+    const failTimeout = setTimeout(() => {
+      window.removeEventListener('message', messageHandler);
+      console.log('Iframe timeout - assuming success');
+      
       resolve({
         success: true,
-        message: 'Order submitted successfully',
+        message: 'Order submitted successfully (timeout)',
         orderId: 'ORD-' + Date.now(),
+        shopId: generateMockShopId(userInfo.shopType),
         timestamp: new Date().toISOString(),
-        itemCount: Object.keys(cart).filter(key => cart[key] > 0).length
+        itemCount: Object.keys(cart).filter(key => cart[key] > 0).length,
+        shopType: userInfo.shopType
       });
       
       // ลบ elements
@@ -54,16 +92,17 @@ export const submitOrderViaIframe = (cart, userInfo = {}) => {
       } catch (e) {
         console.log('Elements already removed');
       }
-    }, 3000); // รอ 3 วินาที
+    }, 5000); // รอ 5 วินาที
 
     // ฟัง response จาก iframe
     iframe.onload = () => {
       console.log('Iframe loaded');
-      // ให้ timeout จัดการแทน
+      // ให้ message handler จัดการแทน
     };
 
     iframe.onerror = () => {
-      clearTimeout(successTimeout);
+      window.removeEventListener('message', messageHandler);
+      clearTimeout(failTimeout);
       console.error('Iframe error');
       reject(new Error('Failed to submit order'));
       try {
@@ -79,3 +118,17 @@ export const submitOrderViaIframe = (cart, userInfo = {}) => {
     form.submit();
   });
 };
+
+// Helper function สำหรับสร้าง mock shop ID
+function generateMockShopId(shopType) {
+  const prefix = {
+    'regular': 'REG',
+    'premium': 'PRM', 
+    'admin': 'ADM'
+  }[shopType] || 'UNK';
+  
+  const timestamp = Date.now().toString();
+  const shopNumber = (parseInt(timestamp.slice(-3)) % 1000).toString().padStart(3, '0');
+  
+  return `${prefix}${shopNumber}`;
+}

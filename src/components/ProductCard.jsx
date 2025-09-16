@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { convertGoogleDriveUrl, getProxiedImageUrl } from '../services/googleDriveImageService';
 
 const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
   const [quantity, setQuantity] = useState(cartQuantity);
   const [inputValue, setInputValue] = useState(cartQuantity.toString());
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState(null);
+  const [imageAttempt, setImageAttempt] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
 
   // Update local state when cartQuantity changes
@@ -12,6 +15,60 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
     setQuantity(cartQuantity);
     setInputValue(cartQuantity.toString());
   }, [cartQuantity]);
+
+  // รีเซ็ตและเตรียม URLs เมื่อมีสินค้าใหม่
+  useEffect(() => {
+    if (product.รูป) {
+      setImageLoaded(false);
+      setImageError(false);
+      setImageAttempt(0);
+      
+      // เตรียม URLs หลายตัว
+      const urls = [
+        convertGoogleDriveUrl(product.รูป),
+        getProxiedImageUrl(product.รูป),
+        product.รูป // URL เดิม
+      ].filter(Boolean);
+
+      if (urls.length > 0) {
+        setCurrentImageUrl(urls[0]);
+      } else {
+        setCurrentImageUrl(null);
+        setImageError(true);
+      }
+    } else {
+      setCurrentImageUrl(null);
+      setImageError(true);
+    }
+  }, [product.รูป]);
+
+  const handleImageError = () => {
+    console.log(`Image attempt ${imageAttempt + 1} failed:`, currentImageUrl);
+    
+    // ลอง URL ถัดไป
+    const urls = [
+      convertGoogleDriveUrl(product.รูป),
+      getProxiedImageUrl(product.รูป),
+      product.รูป
+    ].filter(Boolean);
+
+    const nextAttempt = imageAttempt + 1;
+    
+    if (nextAttempt < urls.length) {
+      setImageAttempt(nextAttempt);
+      setCurrentImageUrl(urls[nextAttempt]);
+      setImageLoaded(false);
+    } else {
+      setImageError(true);
+      setImageLoaded(true);
+    }
+  };
+
+  const handleImageLoad = () => {
+    console.log('Image loaded successfully:', currentImageUrl);
+    setImageLoaded(true);
+    setImageError(false);
+  };
 
   const handleAddToCart = () => {
     const newQuantity = quantity + 1;
@@ -29,8 +86,6 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
 
   const handleInputChange = (e) => {
     const value = e.target.value;
-    
-    // อนุญาตให้กรอกเฉพาะตัวเลข
     if (value === '' || /^\d+$/.test(value)) {
       setInputValue(value);
     }
@@ -52,10 +107,9 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
     }
   };
 
-  // กำหนดสีตาม quantity
   const isSelected = quantity > 0;
   const cardStyle = {
-    backgroundColor: isSelected ? '#f0fdf4' : 'white', // เปลี่ยนสีเมื่อถูกเลือก
+    backgroundColor: isSelected ? '#f0fdf4' : 'white',
     borderRadius: '8px',
     boxShadow: isSelected ? '0 2px 8px rgba(16, 185, 129, 0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
     border: isSelected ? '2px solid #10b981' : '1px solid #e5e7eb',
@@ -73,44 +127,63 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
         backgroundColor: '#f3f4f6',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        overflow: 'hidden'
       }}>
-        {!imageError ? (
-          <img
-            src={product.รูป}
-            alt={product.รายการ}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              transition: 'opacity 0.3s',
-              opacity: imageLoaded ? 1 : 0
-            }}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => {
-              setImageError(true);
-              setImageLoaded(true);
-            }}
-          />
+        {currentImageUrl && !imageError ? (
+          <>
+            <img
+              src={currentImageUrl}
+              alt={product.รายการ}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transition: 'opacity 0.3s',
+                opacity: imageLoaded ? 1 : 0
+              }}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+              loading="lazy"
+            />
+            
+            {!imageLoaded && (
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 1
+              }}>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  border: '2px solid #f3f3f3',
+                  borderTop: '2px solid #10b981',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
+              </div>
+            )}
+          </>
         ) : (
-          <div style={{ fontSize: '32px', color: '#9ca3af' }}>📦</div>
-        )}
-        
-        {!imageLoaded && !imageError && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)'
+          <div style={{ 
+            fontSize: '32px', 
+            color: '#9ca3af',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '4px'
           }}>
-            <div style={{
-              width: '24px',
-              height: '24px',
-              border: '2px solid #f3f3f3',
-              borderTop: '2px solid #10b981',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite'
-            }}></div>
+            📦
+            <span style={{ 
+              fontSize: '8px', 
+              color: '#ef4444',
+              textAlign: 'center',
+              lineHeight: '1.2'
+            }}>
+              รูปโหลดไม่ได้
+            </span>
           </div>
         )}
 
@@ -123,13 +196,14 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
             backgroundColor: '#10b981',
             color: 'white',
             borderRadius: '50%',
-            width: '24px',
-            height: '24px',
+            width: '20px',
+            height: '20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '12px',
-            fontWeight: 'bold'
+            fontSize: '10px',
+            fontWeight: 'bold',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
           }}>
             ✓
           </div>
@@ -186,7 +260,6 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
           marginTop: '12px'
         }}>
           {quantity === 0 ? (
-            // Add Button
             <button
               onClick={handleAddToCart}
               style={{
@@ -210,7 +283,6 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
               </svg>
             </button>
           ) : (
-            // Quantity Controls with Input
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -241,7 +313,6 @@ const ProductCard = ({ product, onAddToCart, cartQuantity = 0 }) => {
                 </svg>
               </button>
               
-              {/* Quantity Input/Display */}
               <input
                 type="text"
                 value={inputValue}
